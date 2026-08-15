@@ -1261,7 +1261,7 @@ export default function IndividualDashboard() {
                         <div className="flex items-start justify-between mb-4">
                           <div>
                             <h3 className="mb-1">{opp.roleTitle}</h3>
-                            <p className="text-sm text-neutral-500">NPO #{opp.npo_Id}</p>
+                            <p className="text-sm text-neutral-500">NPO #{opp.npoId}</p>
                           </div>
                           {opp.category && <Badge className="bg-blue-100 text-blue-700">{opp.category}</Badge>}
                         </div>

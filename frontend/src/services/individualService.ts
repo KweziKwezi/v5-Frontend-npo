@@ -39,7 +39,7 @@ export interface UpdateProfileDto {
 
 export interface VolunteerOpportunity {
   opportunityId: number;
-  npo_Id: number;
+  npoId: number;
   roleTitle: string;
   category: string | null;
   numOfPositions: number;
@@ -47,7 +47,7 @@ export interface VolunteerOpportunity {
   skillsRequired: string | null;
   timeCommitment: string | null;
   duration: string | null;
-  mediaURL: string | null;
+  mediaUrl: string | null;
 }
 
 export interface VolunteerApplicationDto {
