@@ -19,7 +19,14 @@ export const router = createBrowserRouter([
       { path: "register", Component: Register },
       { path: "login", Component: Login },
       { path: "dashboard", Component: Dashboard },
-      { path: "npo-dashboard", Component: NPODashboard },
+      {
+        path: "npo-dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={["NPO"]}>
+            <NPODashboard />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "individual-dashboard",
         element: (
@@ -28,8 +35,22 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      { path: "business-dashboard", Component: BusinessDashboard },
-      { path: "admin-dashboard", Component: AdminDashboard },
+      {
+        path: "business-dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={["Business"]}>
+            <BusinessDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin-dashboard",
+        element: (
+          <ProtectedRoute allowedRoles={["Admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
 ]);
