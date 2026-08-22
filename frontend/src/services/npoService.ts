@@ -237,4 +237,9 @@ export const npoService = {
   // Donate to project (any user)
   donateToProject: (projectId: number, amount: number) =>
     api.post(`/api/npo/project/${projectId}/donate`, { amount }),
+
+  // Browse & Apply to Business Campaigns
+  browseCampaigns: () => api.get<{ campaignId: number; businessId: number; title: string; description: string | null; category: string | null; requirements: string | null; budgetPerPartner: number | null; startDate: string; endDate: string | null }[]>("/api/campaigns"),
+  applyToCampaign: (campaignId: number, motivation?: string) =>
+    api.post(`/api/campaignapplications/apply/${campaignId}`, { motivation }),
 };

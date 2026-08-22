@@ -172,6 +172,7 @@ export default function NPODashboard() {
               { id: "supporters", icon: Users, label: "Supporters" },
               { id: "finances", icon: Wallet, label: "Finances" },
               { id: "verification", icon: Shield, label: "Verification" },
+              { id: "campaigns", icon: Target, label: "Campaigns" },
             ].map(item => (
               <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-orange-50 text-orange-600" : "text-neutral-600 hover:bg-neutral-50"}`}><item.icon className="w-5 h-5" /> {item.label}</button>
             ))}
@@ -296,6 +297,12 @@ export default function NPODashboard() {
               {verificationLoading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div> : verifications.length === 0 ? <Card className="p-12 text-center"><Shield className="w-12 h-12 text-neutral-400 mx-auto mb-3" /><p className="text-neutral-600 mb-4">Not verified yet. Submit your documents.</p><Button onClick={() => setShowVerificationForm(true)}>Start</Button></Card> : <div className="space-y-4">{verifications.map(v => (<Card key={v.verificationId} className="p-6"><div className="flex justify-between"><div><div className="flex items-center gap-3 mb-1"><h3 className="font-semibold">Request #{v.verificationId}</h3><Badge className={v.status === "Approved" ? "bg-green-100 text-green-700" : v.status === "Rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}>{v.status}</Badge></div><p className="text-sm text-neutral-600">Submitted: {new Date(v.submittedDate).toLocaleDateString()}</p></div>{v.status === "Approved" ? <CheckCircle className="w-8 h-8 text-green-600" /> : v.status === "Pending" ? <Clock className="w-8 h-8 text-amber-600" /> : <AlertCircle className="w-8 h-8 text-red-600" />}</div></Card>))}</div>}
             </div>)}
 
+            {/* CAMPAIGNS (Browse & Apply to Business campaigns) */}
+            {activeTab === "campaigns" && (<div>
+              <div className="mb-6"><h1 className="text-2xl font-bold mb-2">Partnership Campaigns</h1><p className="text-neutral-600">Browse and apply to business partnership campaigns</p></div>
+              <CampaignBrowser />
+            </div>)}
+
           </motion.div>
         </main>
       </div>
@@ -321,6 +328,80 @@ export default function NPODashboard() {
       {showVerificationForm && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-lg max-w-lg w-full p-8"><div className="flex justify-between mb-6"><h3 className="font-semibold text-lg">Submit Verification</h3><button onClick={() => setShowVerificationForm(false)}><X className="w-5 h-5" /></button></div><form className="space-y-4" onSubmit={handleSubmitVerification}><div><Label>NPO Certificate URL</Label><Input name="npoCertificate" type="url" className="mt-1" /></div><div><Label>Tax Certificate URL</Label><Input name="npoTaxCertificate" type="url" className="mt-1" /></div><p className="text-xs text-neutral-500">At least one required.</p><div className="flex gap-3"><Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">Submit</Button><Button type="button" variant="outline" onClick={() => setShowVerificationForm(false)}>Cancel</Button></div></form></motion.div></div>)}
 
       {selectedNpoDetail && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-lg max-w-lg w-full p-8"><div className="flex justify-between mb-6"><h3 className="font-semibold text-lg">{selectedNpoDetail.organizationName}</h3><button onClick={() => setSelectedNpoDetail(null)}><X className="w-5 h-5" /></button></div><div className="space-y-4"><div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center"><span className="text-2xl font-bold text-orange-600">{selectedNpoDetail.organizationName.charAt(0)}</span></div><div><h2 className="text-xl font-bold">{selectedNpoDetail.organizationName}</h2>{selectedNpoDetail.npofocusArea && <Badge variant="outline">{selectedNpoDetail.npofocusArea}</Badge>}</div></div>{selectedNpoDetail.npomission && <div><h4 className="font-semibold mb-1">Mission</h4><p className="text-neutral-600 text-sm">{selectedNpoDetail.npomission}</p></div>}<p className="text-sm text-neutral-500">Reg: {selectedNpoDetail.nporegNum}</p></div><div className="flex gap-3 mt-6"><Button className={`flex-1 ${followedNpoIds.has(selectedNpoDetail.npoId) ? "bg-orange-600 hover:bg-orange-700" : ""}`} variant={followedNpoIds.has(selectedNpoDetail.npoId) ? "default" : "outline"} onClick={() => handleFollowNpo(selectedNpoDetail.npoId)}><Heart className={`w-4 h-4 mr-2 ${followedNpoIds.has(selectedNpoDetail.npoId) ? "fill-current" : ""}`} />{followedNpoIds.has(selectedNpoDetail.npoId) ? "Following" : "Follow"}</Button><Button variant="outline" onClick={() => setSelectedNpoDetail(null)}>Close</Button></div></motion.div></div>)}
+    </div>
+  );
+}
+
+// ── Campaign Browser (NPO applies to Business campaigns) ──
+function CampaignBrowser() {
+  const [campaigns, setCampaigns] = useState<{ campaignId: number; businessId: number; title: string; description: string | null; category: string | null; requirements: string | null; budgetPerPartner: number | null; startDate: string; endDate: string | null }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [appliedIds, setAppliedIds] = useState<Set<number>>(new Set());
+  const [applyingId, setApplyingId] = useState<number | null>(null);
+  const [motivation, setMotivation] = useState("");
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await npoService.browseCampaigns(); setCampaigns(r.data); }
+    catch (e) { toast.error(getErrorMessage(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCampaignId) return;
+    setApplyingId(selectedCampaignId);
+    try {
+      await npoService.applyToCampaign(selectedCampaignId, motivation || undefined);
+      setAppliedIds(p => new Set(p).add(selectedCampaignId));
+      setShowApplyModal(false);
+      setMotivation("");
+      toast.success("Application submitted!");
+    } catch (e) {
+      const msg = getErrorMessage(e);
+      if (msg.toLowerCase().includes("already applied")) {
+        setAppliedIds(p => new Set(p).add(selectedCampaignId));
+        toast.error("You've already applied to this campaign.");
+      } else { toast.error(msg); }
+    }
+    finally { setApplyingId(null); }
+  };
+
+  return (
+    <div>
+      {loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-orange-600" /></div> : campaigns.length === 0 ? <Card className="p-12 text-center"><Target className="w-12 h-12 text-neutral-400 mx-auto mb-3" /><p className="text-neutral-600">No campaigns available at the moment.</p></Card> : (
+        <div className="grid md:grid-cols-2 gap-6">{campaigns.map(c => (
+          <Card key={c.campaignId} className="p-6 hover:shadow-lg transition-shadow">
+            <div className="mb-3"><h3 className="font-semibold text-lg">{c.title}</h3>{c.category && <Badge variant="outline" className="mt-1">{c.category}</Badge>}</div>
+            {c.description && <p className="text-neutral-600 text-sm mb-3 line-clamp-3">{c.description}</p>}
+            {c.requirements && <p className="text-sm text-neutral-500 mb-2"><span className="font-medium">Requirements:</span> {c.requirements}</p>}
+            <div className="flex items-center gap-4 text-sm text-neutral-500 mb-4">
+              {c.budgetPerPartner && <span>R {c.budgetPerPartner.toLocaleString()}/partner</span>}
+              <span>{c.startDate}{c.endDate ? ` – ${c.endDate}` : ""}</span>
+            </div>
+            {appliedIds.has(c.campaignId) ? (
+              <Badge className="bg-green-100 text-green-700"><CheckCircle className="w-3 h-3 mr-1" /> Applied</Badge>
+            ) : (
+              <Button className="bg-orange-600 hover:bg-orange-700" size="sm" onClick={() => { setSelectedCampaignId(c.campaignId); setMotivation(""); setShowApplyModal(true); }} disabled={applyingId === c.campaignId}>
+                {applyingId === c.campaignId ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <UserPlus className="w-4 h-4 mr-1" />} Apply
+              </Button>
+            )}
+          </Card>
+        ))}</div>
+      )}
+
+      {/* Apply Modal */}
+      {showApplyModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-md p-6">
+        <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold">Apply to Campaign</h2><Button variant="ghost" size="sm" onClick={() => setShowApplyModal(false)}><X className="w-4 h-4" /></Button></div>
+        <form onSubmit={handleApply} className="space-y-4">
+          <div><Label>Why should your NPO be selected? (optional)</Label><Textarea value={motivation} onChange={e => setMotivation(e.target.value)} rows={4} placeholder="Describe how your NPO aligns with this campaign..." className="mt-1" /></div>
+          <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700">Submit Application</Button>
+        </form>
+      </Card></div>)}
     </div>
   );
 }

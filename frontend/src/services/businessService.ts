@@ -181,6 +181,13 @@ export const businessService = {
   unlikePost: (postId: number) => api.delete(`/api/post/${postId}/unlike`),
   getMyLikes: () => api.get<number[]>("/api/post/my-likes"),
 
+  // Reports (C700)
+  generateReport: (start?: string, end?: string) =>
+    api.get("/api/reports/my-donations/csv", {
+      params: { start: start || "2020-01-01", end: end || undefined },
+      responseType: "blob" as const,
+    }),
+
   // Fundraisers (NPO Projects)
   getFundraisers: () => api.get<Fundraiser[]>("/api/project"),
   donateToFundraiser: (projectId: number, amount: number) =>
