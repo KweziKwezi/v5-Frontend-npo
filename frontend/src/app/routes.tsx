@@ -8,6 +8,7 @@ import NPODashboard from "./components/NPODashboard";
 import IndividualDashboard from "./components/IndividualDashboard";
 import BusinessDashboard from "./components/BusinessDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import Fundraisers from "./components/Fundraisers";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
@@ -19,6 +20,14 @@ export const router = createBrowserRouter([
       { path: "register", Component: Register },
       { path: "login", Component: Login },
       { path: "dashboard", Component: Dashboard },
+      {
+        path: "fundraisers",
+        element: (
+          <ProtectedRoute allowedRoles={["Individual", "Business"]}>
+            <Fundraisers />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "npo-dashboard",
         element: (

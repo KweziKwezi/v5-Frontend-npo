@@ -88,6 +88,19 @@ export interface WalletBalance {
   balance: number;
 }
 
+export interface Fundraiser {
+  projectId: number;
+  npoId: number;
+  npoName: string;
+  projectName: string;
+  projectDesc: string | null;
+  projectStatus: string;
+  projectProgress: number;
+  targetAmount: number;
+  raisedAmount: number;
+  images: string | null;
+}
+
 // --- Error Utility ---
 
 export function getErrorMessage(error: unknown): string {
@@ -167,4 +180,9 @@ export const businessService = {
   likePost: (postId: number) => api.post(`/api/post/${postId}/like`),
   unlikePost: (postId: number) => api.delete(`/api/post/${postId}/unlike`),
   getMyLikes: () => api.get<number[]>("/api/post/my-likes"),
+
+  // Fundraisers (NPO Projects)
+  getFundraisers: () => api.get<Fundraiser[]>("/api/project"),
+  donateToFundraiser: (projectId: number, amount: number) =>
+    api.post(`/api/npo/project/${projectId}/donate`, { amount }),
 };
