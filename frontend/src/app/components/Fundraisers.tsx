@@ -75,24 +75,37 @@ export default function Fundraisers() {
   const handleDonate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
+
     const amt = parseFloat(donateAmount);
-    if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
+    if (isNaN(amt) || amt <= 0) { toast.error("Please enter a valid amount greater than 0."); return; }
     if (amt > walletBalance) { toast.error("Insufficient balance. Please top up your wallet first."); return; }
 
     setDonating(true);
     try {
       const r = await api.post(`/api/npo/project/${selectedProject.projectId}/donate`, { amount: amt });
-      setWalletBalance(r.data.newBalance);
-      // Update local fundraiser progress
+      // Backend returns newBalance, projectRaisedAmount, projectProgress
+      if (typeof r.data.newBalance === "number") {
+        setWalletBalance(r.data.newBalance);
+      }
+      // Update local fundraiser progress from server response
       setFundraisers(prev => prev.map(f =>
         f.projectId === selectedProject.projectId
-          ? { ...f, raisedAmount: r.data.projectRaisedAmount, projectProgress: r.data.projectProgress }
+          ? {
+              ...f,
+              raisedAmount: r.data.projectRaisedAmount ?? f.raisedAmount + amt,
+              projectProgress: r.data.projectProgress ?? f.projectProgress,
+            }
           : f
       ));
       setShowDonateModal(false);
+      setSelectedProject(null);
       setDonateAmount("");
-      toast.success(`Donated R ${amt.toLocaleString()} to "${selectedProject.projectName}"!`);
-    } catch (e) { toast.error(getErrorMessage(e)); }
+      toast.success(`Thank you! You donated R ${amt.toLocaleString()} to "${selectedProject.projectName}".`);
+    } catch (e) {
+      // getErrorMessage surfaces the backend's specific message (insufficient balance,
+      // own fundraiser, inactive fundraiser, wallet not set up, etc.)
+      toast.error(getErrorMessage(e));
+    }
     finally { setDonating(false); }
   };
 

@@ -38,7 +38,9 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  Wallet
+  Wallet,
+  Send,
+  Trash2
 } from "lucide-react";
 
 export default function IndividualDashboard() {
@@ -167,6 +169,13 @@ export default function IndividualDashboard() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState<string | null>(null);
   const [postsLoaded, setPostsLoaded] = useState(false);
+
+  // Comments state
+  const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
+  const [comments, setComments] = useState<import("../../services/individualService").CommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   // Load wallet balance function
   const loadWalletBalance = useCallback(async () => {
@@ -392,6 +401,48 @@ export default function IndividualDashboard() {
   }, [loadMyLikes]);
 
   // Handle like/unlike post
+  // Comment handlers
+  const handleOpenComments = async (post: CommunityPost) => {
+    setSelectedPost(post);
+    setComments([]);
+    setNewComment("");
+    setCommentsLoading(true);
+    try {
+      const r = await individualService.getComments(post.postId);
+      setComments(r.data);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedPost) return;
+    const content = newComment.trim();
+    if (!content) return;
+    setCommentSubmitting(true);
+    try {
+      const r = await individualService.createComment(selectedPost.postId, content);
+      setComments(prev => [r.data, ...prev]);
+      setNewComment("");
+      toast.success("Comment added!");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await individualService.deleteComment(commentId);
+      setComments(prev => prev.filter(c => c.commentId !== commentId));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
   const handleLikePost = async (postId: number) => {
     const isLiked = likedPostIds.has(postId);
 
@@ -1759,10 +1810,13 @@ export default function IndividualDashboard() {
                                       <Heart className={`w-4 h-4 ${likedPostIds.has(post.postId) ? "fill-red-500 text-red-500" : ""}`} />
                                       {post.likeCount}
                                     </button>
-                                    <span className="flex items-center gap-1 text-neutral-600">
+                                    <button
+                                      className="flex items-center gap-1 text-neutral-600 hover:text-orange-600 transition-colors"
+                                      onClick={() => handleOpenComments(post)}
+                                    >
                                       <MessageSquare className="w-4 h-4" />
-                                      0
-                                    </span>
+                                      Comment
+                                    </button>
                                   </div>
                                   <span className="text-neutral-500">
                                     {new Date(post.timestamp).toLocaleDateString("en-ZA", {
@@ -2403,6 +2457,60 @@ export default function IndividualDashboard() {
               </div>
             </form>
           </motion.div>
+        </div>
+      )}
+
+      {/* COMMENTS MODAL */}
+      {selectedPost && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">Comments</h2>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedPost(null)}><X className="w-4 h-4" /></Button>
+            </div>
+            <div className="mb-4 p-3 bg-neutral-50 rounded-lg">
+              <p className="text-xs text-orange-600 font-medium">{selectedPost.authorName}</p>
+              <p className="font-semibold text-sm">{selectedPost.postTitle}</p>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <Input
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddComment(); } }}
+              />
+              <Button onClick={handleAddComment} disabled={commentSubmitting} className="bg-orange-600 hover:bg-orange-700">
+                {commentSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
+            </div>
+            {commentsLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-orange-600" /></div>
+            ) : comments.length === 0 ? (
+              <p className="text-neutral-500 text-sm text-center py-6">No comments yet. Be the first!</p>
+            ) : (
+              <div className="space-y-3">
+                {comments.map(c => (
+                  <div key={c.commentId} className="flex gap-3 p-3 bg-neutral-50 rounded-lg">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold">{c.authorName?.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold">{c.authorName}</span>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs text-neutral-400">{new Date(c.timestamp).toLocaleDateString()}</span>
+                          {c.userId === userId && (
+                            <button onClick={() => handleDeleteComment(c.commentId)} className="text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm mt-1">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       )}
     </div>

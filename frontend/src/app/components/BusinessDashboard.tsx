@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
-import { businessService, getErrorMessage, type BusinessProfile, type NPOSummary, type FollowedNPO, type Campaign, type CampaignApplication, type DonationsResponse, type BusinessImpact, type CommunityPost } from "../../services/businessService";
+import { businessService, getErrorMessage, type BusinessProfile, type NPOSummary, type FollowedNPO, type Campaign, type CampaignApplication, type DonationsResponse, type BusinessImpact, type CommunityPost, type CommentItem } from "../../services/businessService";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -15,7 +15,7 @@ import {
   Search, Heart, TrendingUp, LogOut, DollarSign, Users, Plus, X,
   Building2, Target, MessageSquare, Loader2, RefreshCw, Wallet,
   Calendar, FileText, CheckCircle, AlertCircle, Eye, UserCheck, Ban,
-  ArrowUpFromLine
+  ArrowUpFromLine, Send, Trash2
 } from "lucide-react";
 
 export default function BusinessDashboard() {
@@ -62,6 +62,13 @@ export default function BusinessDashboard() {
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityLoading, setCommunityLoading] = useState(false);
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(new Set());
+
+  // Comments
+  const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   // ═══ LOADERS ═══
   const loadProfile = useCallback(async () => {
@@ -219,6 +226,35 @@ export default function BusinessDashboard() {
     }
   };
 
+  const handleOpenComments = async (post: CommunityPost) => {
+    setSelectedPost(post);
+    setComments([]);
+    setNewComment("");
+    setCommentsLoading(true);
+    try { const r = await businessService.getComments(post.postId); setComments(r.data); }
+    catch (e) { toast.error(getErrorMessage(e)); }
+    finally { setCommentsLoading(false); }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedPost) return;
+    const content = newComment.trim();
+    if (!content) return;
+    setCommentSubmitting(true);
+    try {
+      const r = await businessService.createComment(selectedPost.postId, content);
+      setComments(prev => [r.data, ...prev]);
+      setNewComment("");
+      toast.success("Comment added!");
+    } catch (e) { toast.error(getErrorMessage(e)); }
+    finally { setCommentSubmitting(false); }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try { await businessService.deleteComment(commentId); setComments(prev => prev.filter(c => c.commentId !== commentId)); }
+    catch (e) { toast.error(getErrorMessage(e)); }
+  };
+
   const filteredNpos = npos.filter(n => !npoSearchQuery || n.organizationName.toLowerCase().includes(npoSearchQuery.toLowerCase()) || (n.focusArea || "").toLowerCase().includes(npoSearchQuery.toLowerCase()));
 
   // ═══ RENDER ═══
@@ -346,7 +382,7 @@ export default function BusinessDashboard() {
                 <div className="grid md:grid-cols-2 gap-6">{communityPosts.map(post => (
                   <Card key={post.postId} className="overflow-hidden hover:shadow-lg transition-shadow">
                     {post.mediaUrl && <img src={post.mediaUrl} alt="" className="w-full h-48 object-cover" />}
-                    <div className="p-6"><p className="text-xs text-orange-600 font-medium mb-1">{post.authorName}</p><h3 className="font-semibold mb-2">{post.postTitle}</h3>{post.content && <p className="text-neutral-600 text-sm mb-4 line-clamp-3">{post.content}</p>}<div className="flex items-center justify-between text-sm"><button onClick={() => handleLikePost(post.postId)} className={`flex items-center gap-1 ${likedPostIds.has(post.postId) ? "text-red-500" : "text-neutral-600"}`}><Heart className={`w-4 h-4 ${likedPostIds.has(post.postId) ? "fill-current" : ""}`} /> {post.likeCount}</button><span className="text-neutral-500 text-xs">{new Date(post.timestamp).toLocaleDateString()}</span></div></div>
+                    <div className="p-6"><p className="text-xs text-orange-600 font-medium mb-1">{post.authorName}</p><h3 className="font-semibold mb-2">{post.postTitle}</h3>{post.content && <p className="text-neutral-600 text-sm mb-4 line-clamp-3">{post.content}</p>}<div className="flex items-center justify-between text-sm"><div className="flex items-center gap-4"><button onClick={() => handleLikePost(post.postId)} className={`flex items-center gap-1 ${likedPostIds.has(post.postId) ? "text-red-500" : "text-neutral-600"}`}><Heart className={`w-4 h-4 ${likedPostIds.has(post.postId) ? "fill-current" : ""}`} /> {post.likeCount}</button><button onClick={() => handleOpenComments(post)} className="flex items-center gap-1 text-neutral-600 hover:text-orange-600"><MessageSquare className="w-4 h-4" /> Comment</button></div><span className="text-neutral-500 text-xs">{new Date(post.timestamp).toLocaleDateString()}</span></div></div>
                   </Card>
                 ))}</div>
               )}
@@ -386,6 +422,27 @@ export default function BusinessDashboard() {
           <div><Label>Amount (R)</Label><Input type="number" step="0.01" min="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} required /></div>
           <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={toppingUp}>{toppingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : "Top Up"}</Button>
         </form>
+      </Card></div>)}
+
+      {/* COMMENTS MODAL */}
+      {selectedPost && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold">Comments</h2><Button variant="ghost" size="sm" onClick={() => setSelectedPost(null)}><X className="w-4 h-4" /></Button></div>
+        <div className="mb-4 p-3 bg-neutral-50 rounded-lg"><p className="text-xs text-orange-600 font-medium">{selectedPost.authorName}</p><p className="font-semibold text-sm">{selectedPost.postTitle}</p></div>
+        <div className="flex gap-2 mb-4">
+          <Input placeholder="Write a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddComment(); } }} />
+          <Button onClick={handleAddComment} disabled={commentSubmitting} className="bg-orange-600 hover:bg-orange-700"><Send className="w-4 h-4" /></Button>
+        </div>
+        {commentsLoading ? <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-orange-600" /></div> : comments.length === 0 ? <p className="text-neutral-500 text-sm text-center py-6">No comments yet. Be the first!</p> : (
+          <div className="space-y-3">{comments.map(c => (
+            <div key={c.commentId} className="flex gap-3 p-3 bg-neutral-50 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0"><span className="text-xs font-bold">{c.authorName?.charAt(0)}</span></div>
+              <div className="flex-1">
+                <div className="flex justify-between items-center"><span className="text-sm font-semibold">{c.authorName}</span><div className="flex gap-2 items-center"><span className="text-xs text-neutral-400">{new Date(c.timestamp).toLocaleDateString()}</span>{c.userId === userId && <button onClick={() => handleDeleteComment(c.commentId)} className="text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>}</div></div>
+                <p className="text-sm mt-1">{c.content}</p>
+              </div>
+            </div>
+          ))}</div>
+        )}
       </Card></div>)}
     </div>
   );

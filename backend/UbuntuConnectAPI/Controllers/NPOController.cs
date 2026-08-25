@@ -309,12 +309,20 @@ public class NPOController : ControllerBase
         var project = await _context.Projects.Include(p => p.Npo).FirstOrDefaultAsync(p => p.ProjectId == projectId);
         if (project == null) return NotFound("Project not found.");
 
+        // Prevent donating to your own project
+        if (project.Npo.UserId == userId)
+            return BadRequest("You cannot donate to your own fundraiser.");
+
+        // Only allow donations to active fundraisers
+        if (project.ProjectStatus != "Active")
+            return BadRequest("This fundraiser is not currently accepting donations.");
+
         var senderWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
-        if (senderWallet == null) return BadRequest("You don't have a wallet.");
-        if (senderWallet.Balance < dto.Amount) return BadRequest("Insufficient balance.");
+        if (senderWallet == null) return BadRequest("You don't have a wallet set up yet.");
+        if (senderWallet.Balance < dto.Amount) return BadRequest("Insufficient wallet balance. Please top up your wallet.");
 
         var receiverWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.Npo.UserId);
-        if (receiverWallet == null) return BadRequest("Recipient wallet not found.");
+        if (receiverWallet == null) return BadRequest("The NPO's wallet is not set up. Donation cannot be processed.");
 
         using var dbTx = await _context.Database.BeginTransactionAsync();
         try

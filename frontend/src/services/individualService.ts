@@ -119,6 +119,15 @@ export interface Fundraiser {
   images: string | null;
 }
 
+export interface CommentItem {
+  commentId: number;
+  postId: number;
+  userId: number;
+  authorName: string;
+  content: string;
+  timestamp: string;
+}
+
 // --- Error Utility ---
 
 export function getErrorMessage(error: unknown): string {
@@ -183,6 +192,12 @@ export const individualService = {
   likePost: (postId: number) => api.post(`/api/post/${postId}/like`),
   unlikePost: (postId: number) => api.delete(`/api/post/${postId}/unlike`),
   getMyLikes: () => api.get<number[]>("/api/post/my-likes"),
+
+  // Comments
+  getComments: (postId: number) => api.get<CommentItem[]>(`/api/comment/post/${postId}`),
+  createComment: (postId: number, content: string) =>
+    api.post<CommentItem>(`/api/comment/post/${postId}`, { content }),
+  deleteComment: (commentId: number) => api.delete(`/api/comment/${commentId}`),
 
   // Fundraisers (NPO Projects)
   getFundraisers: () => api.get<Fundraiser[]>("/api/project"),
