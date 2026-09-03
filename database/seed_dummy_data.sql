@@ -302,6 +302,12 @@ BEGIN
     INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
     (@d5, @npoUser2, 10000.00, 'Donation', 'Failed', DATEADD(DAY, -4, GETDATE()));
 
+    -- Campaign contributions (Business funding accepted NPO partners)
+    -- These credit the NPO wallet and are withdrawable, just like donations.
+    INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
+    (@d3, @npoUser1, 8000.00, 'CampaignContribution', 'Completed', DATEADD(DAY, -6, GETDATE())),
+    (@d4, @npoUser2, 12000.00, 'CampaignContribution', 'Completed', DATEADD(DAY, -12, GETDATE()));
+
     -- An NPO withdrawal (funds paid out)
     INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
     (@npoUser1, NULL, 1200.00, 'Withdrawal', 'Completed', DATEADD(DAY, -1, GETDATE()));

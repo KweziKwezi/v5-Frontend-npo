@@ -210,8 +210,12 @@ public class NPOController : ControllerBase
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var userId = int.Parse(userIdClaim!);
 
+        // Include both direct/fundraiser donations AND campaign contributions —
+        // all incoming completed funds count toward this NPO's supporters.
         var donors = await _context.Transactions
-            .Where(t => t.ReceiverUserId == userId && t.TransactionType == "Donation" && t.Status == "Completed")
+            .Where(t => t.ReceiverUserId == userId
+                        && (t.TransactionType == "Donation" || t.TransactionType == "CampaignContribution")
+                        && t.Status == "Completed")
             .GroupBy(t => t.SenderUserId)
             .Select(g => new
             {
