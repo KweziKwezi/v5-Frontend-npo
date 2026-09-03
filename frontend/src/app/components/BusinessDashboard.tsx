@@ -15,7 +15,7 @@ import {
   Search, Heart, TrendingUp, LogOut, DollarSign, Users, Plus, X,
   Building2, Target, MessageSquare, Loader2, RefreshCw, Wallet,
   Calendar, FileText, CheckCircle, AlertCircle, Eye, UserCheck, Ban,
-  ArrowUpFromLine, Send, Trash2
+  ArrowUpFromLine, Send, Trash2, Edit
 } from "lucide-react";
 
 export default function BusinessDashboard() {
@@ -36,6 +36,7 @@ export default function BusinessDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [showCreateCampaign, setShowCreateCampaign] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaignApps, setCampaignApps] = useState<CampaignApplication[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
@@ -195,6 +196,24 @@ export default function BusinessDashboard() {
     catch (e) { toast.error(getErrorMessage(e)); }
   };
 
+  const handleUpdateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCampaign) return;
+    const fd = new FormData(e.currentTarget as HTMLFormElement);
+    try {
+      await businessService.updateCampaign(editingCampaign.campaignId, {
+        title: (fd.get("title") as string) || undefined,
+        description: (fd.get("description") as string) || undefined,
+        category: (fd.get("category") as string) || undefined,
+        requirements: (fd.get("requirements") as string) || undefined,
+        budgetPerPartner: fd.get("budgetPerPartner") ? parseFloat(fd.get("budgetPerPartner") as string) : undefined,
+      });
+      setEditingCampaign(null);
+      loadCampaigns();
+      toast.success("Campaign updated!");
+    } catch (e) { toast.error(getErrorMessage(e)); }
+  };
+
   const handleViewApplications = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     setAppsLoading(true);
@@ -339,7 +358,7 @@ export default function BusinessDashboard() {
                   <Card key={c.campaignId} className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1"><h3 className="font-semibold text-lg">{c.title}</h3>{c.category && <Badge variant="outline" className="mt-1">{c.category}</Badge>}{c.description && <p className="text-neutral-600 text-sm mt-2">{c.description}</p>}<div className="flex gap-4 mt-3 text-sm text-neutral-500">{c.budgetPerPartner && <span>R {c.budgetPerPartner.toLocaleString()}/partner</span>}<span><Calendar className="w-4 h-4 inline mr-1" />{c.startDate}</span>{c.applicantCount !== undefined && <span>{c.applicantCount} applicant{c.applicantCount !== 1 ? "s" : ""}</span>}</div></div>
-                      <div className="flex gap-2 ml-4"><Button size="sm" variant="outline" onClick={() => handleViewApplications(c)}><Eye className="w-4 h-4 mr-1" /> Apps</Button><Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDeleteCampaign(c.campaignId)}><X className="w-4 h-4" /></Button></div>
+                      <div className="flex gap-2 ml-4"><Button size="sm" variant="outline" onClick={() => handleViewApplications(c)}><Eye className="w-4 h-4 mr-1" /> Apps</Button><Button size="sm" variant="outline" onClick={() => setEditingCampaign(c)}><Edit className="w-4 h-4" /></Button><Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDeleteCampaign(c.campaignId)}><X className="w-4 h-4" /></Button></div>
                     </div>
                   </Card>
                 ))}</div>
@@ -402,6 +421,18 @@ export default function BusinessDashboard() {
           <div><Label>Requirements</Label><Textarea name="requirements" placeholder="What you expect from partner NPOs..." /></div>
           <div className="grid grid-cols-2 gap-4"><div><Label>Start Date *</Label><Input name="startDate" type="date" required /></div><div><Label>End Date</Label><Input name="endDate" type="date" /></div></div>
           <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700">Create Campaign</Button>
+        </form>
+      </Card></div>)}
+
+      {/* EDIT CAMPAIGN MODAL */}
+      {editingCampaign && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><Card className="w-full max-w-lg p-6">
+        <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Edit Campaign</h2><Button variant="ghost" size="sm" onClick={() => setEditingCampaign(null)}><X className="w-4 h-4" /></Button></div>
+        <form onSubmit={handleUpdateCampaign} className="space-y-4">
+          <div><Label>Title</Label><Input name="title" defaultValue={editingCampaign.title} required /></div>
+          <div><Label>Description</Label><Textarea name="description" defaultValue={editingCampaign.description || ""} /></div>
+          <div className="grid grid-cols-2 gap-4"><div><Label>Category</Label><Input name="category" defaultValue={editingCampaign.category || ""} placeholder="e.g. Education" /></div><div><Label>Budget per Partner (R)</Label><Input name="budgetPerPartner" type="number" step="0.01" defaultValue={editingCampaign.budgetPerPartner ?? ""} /></div></div>
+          <div><Label>Requirements</Label><Textarea name="requirements" defaultValue={editingCampaign.requirements || ""} placeholder="What you expect from partner NPOs..." /></div>
+          <div className="flex gap-3"><Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">Save Changes</Button><Button type="button" variant="outline" onClick={() => setEditingCampaign(null)}>Cancel</Button></div>
         </form>
       </Card></div>)}
 
