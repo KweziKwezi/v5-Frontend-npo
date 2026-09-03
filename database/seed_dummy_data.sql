@@ -192,3 +192,120 @@ END
 PRINT 'Seed data inserted successfully!';
 PRINT 'Posts, Projects/Fundraisers, and Volunteer Opportunities created for up to 3 NPOs.';
 GO
+
+
+-- ============================================================
+-- VERIFICATION RECORDS (for Admin to review — D400)
+-- Creates Pending, Approved, and Rejected verification requests
+-- so the Admin dashboard verification flow can be tested end-to-end.
+-- ============================================================
+USE UbuntuConnect_DB;
+GO
+
+DECLARE @vNpo1 INT, @vNpo2 INT, @vNpo3 INT;
+DECLARE @adminUserId INT;
+
+SELECT TOP 1 @vNpo1 = NPO_Id FROM NPO ORDER BY NPO_Id;
+SELECT TOP 1 @vNpo2 = NPO_Id FROM NPO WHERE NPO_Id > ISNULL(@vNpo1, 0) ORDER BY NPO_Id;
+SELECT TOP 1 @vNpo3 = NPO_Id FROM NPO WHERE NPO_Id > ISNULL(@vNpo2, 0) ORDER BY NPO_Id;
+
+-- Grab an Admin user to attribute reviewed records to (nullable if none exists)
+SELECT TOP 1 @adminUserId = UserId FROM Users WHERE UserType = 'Admin' ORDER BY UserId;
+
+-- NPO 1 — PENDING (awaiting admin review)
+IF @vNpo1 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Verification WHERE NPO_Id = @vNpo1)
+BEGIN
+    INSERT INTO Verification (NPO_Id, NPOCertificate, NPOTaxCertificate, Status, SubmittedDate)
+    VALUES (@vNpo1,
+        'https://example.com/docs/ubuntu-hope-npo-certificate.pdf',
+        'https://example.com/docs/ubuntu-hope-tax-clearance.pdf',
+        'Pending', DATEADD(DAY, -3, GETDATE()));
+END
+
+-- NPO 2 — APPROVED (already reviewed) + mark its user verified
+IF @vNpo2 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Verification WHERE NPO_Id = @vNpo2)
+BEGIN
+    INSERT INTO Verification (NPO_Id, ReviewedByUserId, NPOCertificate, NPOTaxCertificate, Status, SubmittedDate, ReviewedDate)
+    VALUES (@vNpo2, @adminUserId,
+        'https://example.com/docs/green-earth-npo-certificate.pdf',
+        'https://example.com/docs/green-earth-tax-clearance.pdf',
+        'Approved', DATEADD(DAY, -10, GETDATE()), DATEADD(DAY, -7, GETDATE()));
+
+    UPDATE Users SET IsVerified = 1
+    WHERE UserId = (SELECT UserId FROM NPO WHERE NPO_Id = @vNpo2);
+END
+
+-- NPO 3 — REJECTED (reviewed, not approved)
+IF @vNpo3 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Verification WHERE NPO_Id = @vNpo3)
+BEGIN
+    INSERT INTO Verification (NPO_Id, ReviewedByUserId, NPOCertificate, NPOTaxCertificate, Status, SubmittedDate, ReviewedDate)
+    VALUES (@vNpo3, @adminUserId,
+        'https://example.com/docs/thanda-health-npo-certificate.pdf',
+        NULL,
+        'Rejected', DATEADD(DAY, -14, GETDATE()), DATEADD(DAY, -11, GETDATE()));
+END
+
+PRINT 'Verification seed data inserted (Pending / Approved / Rejected).';
+GO
+
+-- ============================================================
+-- DONATION & TRANSACTION RECORDS (for Admin CSV report — D200 / C700 / A700)
+-- Simulates Individuals and Businesses donating to NPOs so that:
+--   • Admin "View Transactions" has data
+--   • Admin/Business donation CSV reports have rows to export
+--   • NPO "Supporters > Donors" shows donors
+-- Donations: SenderUserId = donor, ReceiverUserId = NPO's UserId
+-- ============================================================
+USE UbuntuConnect_DB;
+GO
+
+DECLARE @npoUser1 INT, @npoUser2 INT, @npoUser3 INT;
+SELECT TOP 1 @npoUser1 = UserId FROM NPO ORDER BY NPO_Id;
+SELECT TOP 1 @npoUser2 = UserId FROM NPO WHERE NPO_Id > (SELECT MIN(NPO_Id) FROM NPO) ORDER BY NPO_Id;
+SELECT @npoUser3 = UserId FROM NPO WHERE NPO_Id = (SELECT MAX(NPO_Id) FROM NPO);
+
+-- Collect a few donor user IDs (Individuals + Businesses)
+DECLARE @donors TABLE (rn INT IDENTITY(1,1), UserId INT);
+INSERT INTO @donors (UserId)
+SELECT TOP 5 UserId FROM Users
+WHERE UserType IN ('Individual', 'Business') AND IsActive = 1
+ORDER BY UserId;
+
+DECLARE @d1 INT, @d2 INT, @d3 INT, @d4 INT, @d5 INT;
+SELECT @d1 = UserId FROM @donors WHERE rn = 1;
+SELECT @d2 = UserId FROM @donors WHERE rn = 2;
+SELECT @d3 = UserId FROM @donors WHERE rn = 3;
+SELECT @d4 = UserId FROM @donors WHERE rn = 4;
+SELECT @d5 = UserId FROM @donors WHERE rn = 5;
+
+-- Only seed donations if we have at least one donor and one NPO, and none exist yet
+IF @d1 IS NOT NULL AND @npoUser1 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Transactions WHERE TransactionType = 'Donation')
+BEGIN
+    INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
+    (@d1, @npoUser1, 500.00,  'Donation', 'Completed', DATEADD(DAY, -1,  GETDATE())),
+    (@d1, @npoUser2, 250.00,  'Donation', 'Completed', DATEADD(DAY, -3,  GETDATE())),
+    (@d2, @npoUser1, 1000.00, 'Donation', 'Completed', DATEADD(DAY, -5,  GETDATE())),
+    (@d2, @npoUser3, 750.00,  'Donation', 'Completed', DATEADD(DAY, -6,  GETDATE())),
+    (@d3, @npoUser2, 2000.00, 'Donation', 'Completed', DATEADD(DAY, -8,  GETDATE())),
+    (@d3, @npoUser1, 300.00,  'Donation', 'Completed', DATEADD(DAY, -9,  GETDATE())),
+    (@d4, @npoUser3, 5000.00, 'Donation', 'Completed', DATEADD(DAY, -11, GETDATE())),
+    (@d4, @npoUser2, 1500.00, 'Donation', 'Completed', DATEADD(DAY, -13, GETDATE())),
+    (@d5, @npoUser1, 100.00,  'Donation', 'Completed', DATEADD(DAY, -15, GETDATE())),
+    (@d5, @npoUser3, 800.00,  'Donation', 'Completed', DATEADD(DAY, -18, GETDATE()));
+
+    -- A couple of TopUps (Individual/Business funding their wallets)
+    INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
+    (NULL, @d1, 2000.00, 'TopUp', 'Completed', DATEADD(DAY, -2,  GETDATE())),
+    (NULL, @d3, 5000.00, 'TopUp', 'Completed', DATEADD(DAY, -7,  GETDATE()));
+
+    -- One failed donation (insufficient funds scenario) for realistic reporting
+    INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
+    (@d5, @npoUser2, 10000.00, 'Donation', 'Failed', DATEADD(DAY, -4, GETDATE()));
+
+    -- An NPO withdrawal (funds paid out)
+    INSERT INTO Transactions (SenderUserId, ReceiverUserId, Amount, TransactionType, Status, Timestamp) VALUES
+    (@npoUser1, NULL, 1200.00, 'Withdrawal', 'Completed', DATEADD(DAY, -1, GETDATE()));
+END
+
+PRINT 'Donation / transaction seed data inserted (Donations, TopUps, Withdrawal, one Failed).';
+GO

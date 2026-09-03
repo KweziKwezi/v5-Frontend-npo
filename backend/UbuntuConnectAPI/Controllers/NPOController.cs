@@ -98,53 +98,9 @@ public class NPOController : ControllerBase
         return NoContent();
     }
 
-    // ── TOP UP WALLET (NPO simulation) ──────────────────────────
-    [Authorize(Roles = "NPO")]
-    [HttpPost("topup")]
-    public async Task<IActionResult> TopUp([FromBody] TopUpRequest dto)
-    {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var userId = int.Parse(userIdClaim!);
-
-        if (dto.Amount <= 0)
-            return BadRequest("Top-up amount must be greater than zero.");
-
-        var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
-        if (wallet == null)
-            return BadRequest("You do not have a wallet set up yet.");
-
-        using var dbTransaction = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            wallet.Balance += dto.Amount;
-
-            var transaction = new Models.Transaction
-            {
-                SenderUserId = null,
-                ReceiverUserId = userId,
-                Amount = dto.Amount,
-                TransactionType = "TopUp",
-                Status = "Completed",
-                Timestamp = DateTime.UtcNow
-            };
-            _context.Transactions.Add(transaction);
-
-            await _context.SaveChangesAsync();
-            await dbTransaction.CommitAsync();
-
-            return Ok(new
-            {
-                message = "Wallet topped up successfully.",
-                transactionId = transaction.TransactionId,
-                newBalance = wallet.Balance
-            });
-        }
-        catch
-        {
-            await dbTransaction.RollbackAsync();
-            return StatusCode(500, "Top-up failed due to a server error.");
-        }
-    }
+    // NOTE: NPO wallet Top-Up has been removed by design.
+    // NPOs receive funds through donations and campaign funding, not self top-up.
+    // Only Individuals and Businesses can top up their wallets.
 
     // NOTE: Delete endpoint removed. Deleting an NPO would cascade-delete
     // volunteer opportunities, applications, follows, etc. Same reasoning as

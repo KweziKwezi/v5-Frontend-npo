@@ -123,9 +123,9 @@ export default function Fundraisers() {
       {/* Header */}
       <header className="bg-white border-b border-neutral-200 py-4 px-6">
         <div className="container mx-auto max-w-7xl flex items-center justify-between">
-          <Link to="/" className="text-xl text-neutral-900 font-bold">UbuntuConnect</Link>
+          <Link to={dashboardPath} className="text-xl text-neutral-900 font-bold">UbuntuConnect</Link>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-neutral-600">Balance: R {walletBalance.toLocaleString()}</span>
+            <span className="text-sm text-neutral-600 hidden sm:inline">Balance: R {walletBalance.toLocaleString()}</span>
             <Button variant="outline" size="sm" onClick={logout}><LogOut className="w-4 h-4 mr-2" /> Logout</Button>
           </div>
         </div>

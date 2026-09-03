@@ -40,12 +40,14 @@ import {
   RefreshCw,
   Wallet,
   Send,
-  Trash2
+  Trash2,
+  Menu
 } from "lucide-react";
 
 export default function IndividualDashboard() {
   const { logout, email, userId } = useAuth();
   const [activeTab, setActiveTab] = useState("discover");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Helper: deterministic gradient color based on NPO name
   const getNpoColor = (name: string): string => {
@@ -827,14 +829,19 @@ export default function IndividualDashboard() {
       {/* Header */}
       <header className="bg-white border-b border-neutral-200 py-4 px-6">
         <div className="container mx-auto max-w-7xl flex items-center justify-between">
-          <Link to="/" className="text-xl text-neutral-900">
-            UbuntuConnect
-          </Link>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-neutral-600">
+              <Menu className="w-6 h-6" />
+            </button>
+            <button onClick={() => setActiveTab("discover")} className="text-xl text-neutral-900">
+              UbuntuConnect
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm">
               <Bell className="w-4 h-4" />
             </Button>
-            <span className="text-neutral-600">
+            <span className="text-neutral-600 hidden sm:inline">
               {profile ? `${profile.firstName} ${profile.lastName}` : email || "User"}
             </span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -847,8 +854,10 @@ export default function IndividualDashboard() {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-neutral-200 min-h-[calc(100vh-73px)] p-6 sticky top-0 h-screen overflow-y-auto">
-          <nav className="space-y-2">
+        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 transition-transform fixed lg:sticky top-0 left-0 z-40 w-64 bg-white border-r border-neutral-200 h-screen lg:min-h-[calc(100vh-73px)] p-6 overflow-y-auto`}>
+          <div className="flex justify-between items-center mb-4 lg:hidden"><span className="font-bold">Menu</span><button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button></div>
+          <nav className="space-y-2" onClick={() => setSidebarOpen(false)}>
             <button
               onClick={() => setActiveTab("discover")}
               className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
@@ -956,7 +965,7 @@ export default function IndividualDashboard() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 md:p-8 w-full min-w-0">
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 20 }}

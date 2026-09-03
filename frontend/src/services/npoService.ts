@@ -211,7 +211,7 @@ export const npoService = {
   getWalletBalance: (userId: number) => api.get<WalletBalance>(`/api/wallet/user/${userId}/balance`),
   getTransactions: (userId: number) => api.get<TransactionItem[]>(`/api/transaction/user/${userId}`),
   withdraw: (amount: number) => api.post("/api/transaction/withdraw", { amount }),
-  topUp: (amount: number) => api.post<{ message: string; transactionId: number; newBalance: number }>("/api/npo/topup", { amount }),
+  // Top-up removed for NPOs — they receive funds via donations, not self top-up
 
   // Volunteer Opportunities (NPO creates these for individuals to apply to)
   getMyOpportunities: (npoId: number) => api.get<VolunteerOpportunityItem[]>(`/api/VolunteerOpportunity/npo/${npoId}`),

@@ -12,12 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   Shield, Users, Building2, Heart, TrendingUp, LogOut,
   CheckCircle, X, Search, DollarSign, AlertCircle,
-  Eye, UserCheck, Ban, Loader2, RefreshCw, FileText
+  Eye, UserCheck, Ban, Loader2, RefreshCw, FileText, Menu
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const selectTab = (id: string) => { setActiveTab(id); setSidebarOpen(false); };
 
   // Stats
   const [stats, setStats] = useState<PlatformStats | null>(null);
@@ -112,10 +114,12 @@ export default function AdminDashboard() {
   // ═══ RENDER ═══
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="bg-white border-b border-neutral-200 py-4 px-6"><div className="container mx-auto max-w-7xl flex items-center justify-between"><Link to="/" className="text-xl text-neutral-900 font-bold">UbuntuConnect</Link><div className="flex items-center gap-4"><Badge className="bg-purple-100 text-purple-700"><Shield className="w-3 h-3 mr-1" /> Admin</Badge><Button variant="outline" size="sm" onClick={logout}><LogOut className="w-4 h-4 mr-2" /> Logout</Button></div></div></header>
+      <header className="bg-white border-b border-neutral-200 py-4 px-6"><div className="container mx-auto max-w-7xl flex items-center justify-between"><div className="flex items-center gap-3"><button onClick={() => setSidebarOpen(true)} className="lg:hidden text-neutral-600"><Menu className="w-6 h-6" /></button><button onClick={() => setActiveTab("overview")} className="text-xl text-neutral-900 font-bold">UbuntuConnect</button></div><div className="flex items-center gap-4"><Badge className="bg-purple-100 text-purple-700"><Shield className="w-3 h-3 mr-1" /> Admin</Badge><Button variant="outline" size="sm" onClick={logout}><LogOut className="w-4 h-4 mr-2" /> Logout</Button></div></div></header>
 
       <div className="flex">
-        <aside className="w-64 bg-white border-r border-neutral-200 min-h-[calc(100vh-73px)] p-6 sticky top-0 h-screen overflow-y-auto">
+        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 transition-transform fixed lg:sticky top-0 left-0 z-40 w-64 bg-white border-r border-neutral-200 h-screen lg:min-h-[calc(100vh-73px)] p-6 overflow-y-auto`}>
+          <div className="flex justify-between items-center mb-4 lg:hidden"><span className="font-bold">Menu</span><button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button></div>
           <nav className="space-y-2">
             {[
               { id: "overview", icon: TrendingUp, label: "Overview" },
@@ -123,12 +127,12 @@ export default function AdminDashboard() {
               { id: "verifications", icon: Shield, label: "Verifications" },
               { id: "transactions", icon: DollarSign, label: "Transactions" },
             ].map(item => (
-              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-purple-50 text-purple-600" : "text-neutral-600 hover:bg-neutral-50"}`}><item.icon className="w-5 h-5" /> {item.label}</button>
+              <button key={item.id} onClick={() => selectTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-purple-50 text-purple-600" : "text-neutral-600 hover:bg-neutral-50"}`}><item.icon className="w-5 h-5" /> {item.label}</button>
             ))}
           </nav>
         </aside>
 
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 md:p-8 w-full min-w-0">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
 
             {/* OVERVIEW */}

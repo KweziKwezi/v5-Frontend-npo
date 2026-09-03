@@ -17,12 +17,14 @@ import {
   Settings, LogOut, BarChart3, Upload, DollarSign, UserPlus, X, Check,
   Clock, Calendar, Wallet, ArrowDownToLine, ArrowUpRight, Edit, Trash2,
   MessageSquare, Loader2, RefreshCw, Send, FolderOpen, Shield, Search,
-  MapPin, ArrowUpFromLine, Eye, UserCheck, Target
+  MapPin, ArrowUpFromLine, Eye, UserCheck, Target, Menu
 } from "lucide-react";
 
 export default function NPODashboard() {
   const { logout, userId } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const selectTab = (id: string) => { setActiveTab(id); setSidebarOpen(false); };
 
   // Posts
   const [posts, setPosts] = useState<PostItem[]>([]);
@@ -62,11 +64,8 @@ export default function NPODashboard() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [walletLoading, setWalletLoading] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [topUpAmount, setTopUpAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
-  const [toppingUp, setToppingUp] = useState(false);
 
   // Profile
   const [npoProfile, setNpoProfile] = useState<{ npoId: number; organizationName: string; npofocusArea: string | null; npomission: string | null } | null>(null);
@@ -147,7 +146,6 @@ export default function NPODashboard() {
 
   const handleSubmitVerification = async (e: React.FormEvent) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); try { await npoService.submitVerification({ npoCertificate: (fd.get("npoCertificate") as string) || undefined, npoTaxCertificate: (fd.get("npoTaxCertificate") as string) || undefined }); setShowVerificationForm(false); loadVerification(); toast.success("Submitted!"); } catch (e) { toast.error(getErrorMessage(e)); } };
 
-  const handleTopUp = async (e: React.FormEvent) => { e.preventDefault(); const amt = parseFloat(topUpAmount); if (!amt || amt <= 0) { toast.error("Enter valid amount."); return; } setToppingUp(true); try { const r = await npoService.topUp(amt); setWalletBalance(r.data.newBalance); setTransactions(p => [{ transactionId: r.data.transactionId, senderUserId: null, receiverUserId: userId, amount: amt, transactionType: "TopUp", status: "Completed", timestamp: new Date().toISOString() }, ...p]); setShowTopUpModal(false); setTopUpAmount(""); toast.success(`R ${amt.toLocaleString()} added!`); } catch (e) { toast.error(getErrorMessage(e)); } finally { setToppingUp(false); } };
   const handleWithdraw = async (e: React.FormEvent) => { e.preventDefault(); const amt = parseFloat(withdrawAmount); if (!amt || amt <= 0) { toast.error("Enter valid amount."); return; } if (amt > walletBalance) { toast.error("Insufficient balance."); return; } setWithdrawing(true); try { await npoService.withdraw(amt); setWalletBalance(p => p - amt); setTransactions(p => [{ transactionId: Date.now(), senderUserId: userId, receiverUserId: null, amount: amt, transactionType: "Withdrawal", status: "Completed", timestamp: new Date().toISOString() }, ...p]); setShowWithdrawModal(false); setWithdrawAmount(""); toast.success(`R ${amt.toLocaleString()} withdrawn!`); } catch (e) { toast.error(getErrorMessage(e)); } finally { setWithdrawing(false); } };
 
   const handleFollowNpo = async (npoId: number) => { if (followedNpoIds.has(npoId)) { setFollowedNpoIds(p => { const n = new Set(p); n.delete(npoId); return n; }); try { await npoService.unfollowNpo(npoId); } catch (e) { setFollowedNpoIds(p => new Set(p).add(npoId)); toast.error(getErrorMessage(e)); } } else { setFollowedNpoIds(p => new Set(p).add(npoId)); try { await npoService.followNpo(npoId); toast.success("Following!"); } catch (e) { setFollowedNpoIds(p => { const n = new Set(p); n.delete(npoId); return n; }); toast.error(getErrorMessage(e)); } } };
@@ -159,10 +157,12 @@ export default function NPODashboard() {
   // ═══ RENDER ═══
   return (
     <div className="min-h-screen bg-neutral-50">
-      <header className="bg-white border-b border-neutral-200 py-4 px-6"><div className="container mx-auto max-w-7xl flex items-center justify-between"><Link to="/" className="text-xl text-neutral-900 font-bold">UbuntuConnect</Link><div className="flex items-center gap-4"><span className="text-neutral-600">{npoProfile?.organizationName || "NPO"}</span><Button variant="outline" size="sm" onClick={logout}><LogOut className="w-4 h-4 mr-2" /> Logout</Button></div></div></header>
+      <header className="bg-white border-b border-neutral-200 py-4 px-6"><div className="container mx-auto max-w-7xl flex items-center justify-between"><div className="flex items-center gap-3"><button onClick={() => setSidebarOpen(true)} className="lg:hidden text-neutral-600"><Menu className="w-6 h-6" /></button><button onClick={() => setActiveTab("overview")} className="text-xl text-neutral-900 font-bold">UbuntuConnect</button></div><div className="flex items-center gap-4"><span className="text-neutral-600 hidden sm:inline">{npoProfile?.organizationName || "NPO"}</span><Button variant="outline" size="sm" onClick={logout}><LogOut className="w-4 h-4 mr-2" /> Logout</Button></div></div></header>
 
       <div className="flex">
-        <aside className="w-64 bg-white border-r border-neutral-200 min-h-[calc(100vh-73px)] p-6 sticky top-0 h-screen overflow-y-auto">
+        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 transition-transform fixed lg:sticky top-0 left-0 z-40 w-64 bg-white border-r border-neutral-200 h-screen lg:min-h-[calc(100vh-73px)] p-6 overflow-y-auto`}>
+          <div className="flex justify-between items-center mb-4 lg:hidden"><span className="font-bold">Menu</span><button onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button></div>
           <nav className="space-y-2">
             {[
               { id: "overview", icon: BarChart3, label: "Overview" },
@@ -176,12 +176,12 @@ export default function NPODashboard() {
               { id: "verification", icon: Shield, label: "Verification" },
               { id: "campaigns", icon: Target, label: "Campaigns" },
             ].map(item => (
-              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-orange-50 text-orange-600" : "text-neutral-600 hover:bg-neutral-50"}`}><item.icon className="w-5 h-5" /> {item.label}</button>
+              <button key={item.id} onClick={() => selectTab(item.id)} className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-orange-50 text-orange-600" : "text-neutral-600 hover:bg-neutral-50"}`}><item.icon className="w-5 h-5" /> {item.label}</button>
             ))}
           </nav>
         </aside>
 
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 md:p-8 w-full min-w-0">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
 
             {/* OVERVIEW */}
@@ -282,7 +282,7 @@ export default function NPODashboard() {
 
             {/* FINANCES */}
             {activeTab === "finances" && (<div>
-              <div className="flex items-center justify-between mb-8"><div><h1 className="text-2xl font-bold mb-2">Finances & Wallet</h1></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={loadWallet}><RefreshCw className="w-4 h-4" /></Button><Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowTopUpModal(true)}><ArrowUpFromLine className="w-4 h-4 mr-2" /> Top Up</Button><Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowWithdrawModal(true)}><ArrowDownToLine className="w-4 h-4 mr-2" /> Withdraw</Button></div></div>
+              <div className="flex items-center justify-between mb-8"><div><h1 className="text-2xl font-bold mb-2">Finances & Wallet</h1></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={loadWallet}><RefreshCw className="w-4 h-4" /></Button><Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowWithdrawModal(true)}><ArrowDownToLine className="w-4 h-4 mr-2" /> Withdraw</Button></div></div>
               {walletLoading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div> : (<>
                 <div className="grid md:grid-cols-3 gap-6 mb-8">
                   <Card className="p-8 bg-gradient-to-br from-green-500 to-green-600 text-white"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center"><Wallet className="w-6 h-6" /></div><div><p className="text-white/80 text-sm">Balance</p><h2 className="text-2xl font-bold">R {walletBalance.toLocaleString()}</h2></div></div></Card>
@@ -325,7 +325,7 @@ export default function NPODashboard() {
 
       {editingOpportunity && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-lg max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto"><div className="flex justify-between mb-6"><h3 className="font-semibold text-lg">Edit Volunteer Opportunity</h3><button onClick={() => setEditingOpportunity(null)}><X className="w-5 h-5" /></button></div><form className="space-y-4" onSubmit={handleUpdateOpportunity}><div><Label>Role Title</Label><Input name="roleTitle" defaultValue={editingOpportunity.roleTitle} required className="mt-1" /></div><div className="grid grid-cols-2 gap-4"><div><Label>Category</Label><Input name="category" defaultValue={editingOpportunity.category || ""} className="mt-1" /></div><div><Label>Positions</Label><Input name="numOfPositions" type="number" min="1" defaultValue={editingOpportunity.numOfPositions} className="mt-1" /></div></div><div><Label>Description</Label><Textarea name="description" defaultValue={editingOpportunity.description || ""} rows={3} className="mt-1" /></div><div><Label>Skills Required</Label><Input name="skillsRequired" defaultValue={editingOpportunity.skillsRequired || ""} className="mt-1" /></div><div className="grid grid-cols-2 gap-4"><div><Label>Time Commitment</Label><Input name="timeCommitment" defaultValue={editingOpportunity.timeCommitment || ""} className="mt-1" /></div><div><Label>Duration</Label><Input name="duration" defaultValue={editingOpportunity.duration || ""} className="mt-1" /></div></div><div className="flex gap-3"><Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">Save Changes</Button><Button type="button" variant="outline" onClick={() => setEditingOpportunity(null)}>Cancel</Button></div></form></motion.div></div>)}
 
-      {showTopUpModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-lg max-w-md w-full p-8"><div className="flex justify-between mb-6"><h3 className="font-semibold text-lg">Top Up Wallet</h3><button onClick={() => setShowTopUpModal(false)}><X className="w-5 h-5" /></button></div><form className="space-y-4" onSubmit={handleTopUp}><div className="bg-neutral-50 p-4 rounded-lg text-center"><span className="text-neutral-600">Balance: </span><span className="text-xl font-bold">R {walletBalance.toLocaleString()}</span></div><div><Label>Amount (R)</Label><Input type="number" min="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} required className="mt-1" /></div><div className="grid grid-cols-4 gap-2">{[100, 500, 1000, 5000].map(a => <Button key={a} type="button" variant="outline" size="sm" onClick={() => setTopUpAmount(String(a))}>R {a}</Button>)}</div><div className="flex gap-3"><Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={toppingUp}>{toppingUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpFromLine className="w-4 h-4 mr-2" />}Top Up</Button><Button type="button" variant="outline" onClick={() => setShowTopUpModal(false)}>Cancel</Button></div></form></motion.div></div>)}
+      {/* NPO Top-Up removed — NPOs receive funds via donations, not top-up */}
 
       {showWithdrawModal && (<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-lg max-w-md w-full p-8"><div className="flex justify-between mb-6"><h3 className="font-semibold text-lg">Withdraw Funds</h3><button onClick={() => setShowWithdrawModal(false)}><X className="w-5 h-5" /></button></div><form className="space-y-4" onSubmit={handleWithdraw}><div className="bg-neutral-50 p-4 rounded-lg text-center"><span className="text-neutral-600">Available: </span><span className="text-xl font-bold">R {walletBalance.toLocaleString()}</span></div><div><Label>Amount (R)</Label><Input type="number" min="1" max={walletBalance} value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} required className="mt-1" /></div><div className="flex gap-3"><Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700" disabled={withdrawing}>{withdrawing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowDownToLine className="w-4 h-4 mr-2" />}Withdraw</Button><Button type="button" variant="outline" onClick={() => setShowWithdrawModal(false)}>Cancel</Button></div></form></motion.div></div>)}
 
